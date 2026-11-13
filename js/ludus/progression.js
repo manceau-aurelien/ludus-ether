@@ -122,7 +122,8 @@ const UTIL_NODES = [
 ];
 const RESILIENCE_XP = 30;
 const GAME_XP = 2;           // multiplicateur global de l'XP gagnée (hors prime de résilience)
-const COOP_XP = 2, COOP_ENEMY_DMG = 2;   // coopération en ligne : XP et dégâts ennemis doublés
+const COOP_XP = 2, COOP_ENEMY_DMG = 2;
+const COOP_CROWD_FROM = 3, COOP_CROWD = 2;   // coop dès le palier 4 : recrues admises, ennemis ordinaires ×2   // coopération en ligne : XP et dégâts ennemis doublés
 const HP_BASE = 0.3, HP_STEP = 0.06;   // vie de départ très faible, ×2,1 au niveau 30
 
 // ---------------------------------------------------------------------

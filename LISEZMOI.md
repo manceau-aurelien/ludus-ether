@@ -23,7 +23,7 @@ Le jeu d'origine est disponible en bonus depuis le titre : *Bonus : Éclats d'É
 Depuis le titre : *Coopération en ligne*. Chaque joueur doit avoir fondé son école.
 - **Héberger** : un code de 5 caractères s'affiche, à donner à votre partenaire.
 - **Rejoindre** : saisissez le code de l'hôte.
-- Chaque joueur amène **uniquement son champion** (les recrues restent au Ludus). On joue les **paliers de l'hôte**, qui choisit la vitesse et lance les départs ; l'invité peut signaler qu'il est prêt.
+- Paliers 1 à 3 : chaque joueur amène **uniquement son champion**. **À partir du palier 4** (et dans l'Arène des Champions) : les ennemis ordinaires sont **deux fois plus nombreux**, et chaque joueur amène aussi **ses recrues** (avec leurs propres améliorations). On joue les **paliers de l'hôte**, qui choisit la vitesse et lance les départs ; l'invité peut signaler qu'il est prêt.
 - **Dégâts des ennemis ×2, XP gagnée ×2.** Chacun reçoit l'XP dans **sa propre école** et l'utilise dans son propre arbre, au camp (les paliers ne se débloquent que chez l'hôte).
 - La défaite survient quand les deux champions sont à terre. Si l'invité se déconnecte, l'hôte continue seul (et le même code reste valable pour revenir).
 - Connexion internet nécessaire : la mise en relation passe par le service gratuit PeerJS, puis la partie se joue en direct entre les deux navigateurs. Deux onglets d'un même navigateur partagent la même sauvegarde : pour jouer à deux, utilisez deux ordinateurs (ou deux navigateurs différents).

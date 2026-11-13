@@ -11,8 +11,18 @@ const netAvailable = () => typeof Peer !== 'undefined';
 const r1 = v => Math.round(v * 10) / 10;
 const poseArr = p => PK.map(k => Math.round(p[k]));
 const arrPose = a => { const o = {}; PK.forEach((k, i) => { o[k] = a[i]; }); return o; };
+// Recrues de l'invité (elles ne combattent qu'à partir du palier 4)
+function guestTeam(save) {
+  const out = [];
+  for (let k = 0; k < teamSlots(save); k++) {
+    if (!save.team[k]) save.team[k] = PLAYABLE.find(id => id !== save.main && !save.team.includes(id));
+    const id = save.team[k];
+    out.push({ charId: id, charName: CHARS[id].name, opts: fighterOpts(save, id, false) });
+  }
+  return out;
+}
 function guestHello(save) {
-  return { t: 'hello', charId: save.main, charName: CHARS[save.main].name, opts: fighterOpts(save, save.main, true) };
+  return { t: 'hello', charId: save.main, charName: CHARS[save.main].name, opts: fighterOpts(save, save.main, true), team: guestTeam(save) };
 }
 function peerError(e) {
   const t = e && e.type;
@@ -58,6 +68,7 @@ class CoopHost {
       if (this.run) this.run.guestJoined();
     } else if (d.t === 'opts' && this.guestOpts) {
       this.guestOpts.opts = d.opts;
+      if (d.team) this.guestOpts.team = d.team;
       if (this.run) this.run.applyGuest();
     } else if (d.t === 'ready') this.guestReady = !!d.v;
   }
@@ -234,8 +245,9 @@ class CoopLobby {
   draw(ctx) {
     ludusBackdrop(ctx, this.t);
     txt(ctx, 'Coopération en ligne', W / 2, 70, { size: 34, color: '#ffd27a', align: 'center' });
-    txt(ctx, 'Deux écoles, deux champions, une même arène. Ennemis deux fois plus dangereux, XP doublée.', W / 2, 100, { size: 14, align: 'center', color: '#f4e6d4', w: 'normal' });
-    if (this.save) txt(ctx, 'Votre champion : ' + CHARS[this.save.main].name, W / 2, 124, { size: 14, align: 'center', color: '#ffe9a0' });
+    txt(ctx, 'Deux écoles, deux champions, une même arène. Ennemis deux fois plus dangereux, XP doublée.', W / 2, 96, { size: 14, align: 'center', color: '#f4e6d4', w: 'normal' });
+    txt(ctx, 'À partir du palier 4 : ennemis deux fois plus nombreux, et chacun amène ses recrues.', W / 2, 112, { size: 13, align: 'center', color: '#7fd8ff', w: 'normal' });
+    if (this.save) txt(ctx, 'Votre champion : ' + CHARS[this.save.main].name, W / 2, 134, { size: 14, align: 'center', color: '#ffe9a0' });
     if (this.mode === 'host' && this.host) {
       const st = this.host.status;
       if (st === 'init') txt(ctx, 'Ouverture de la salle…', W / 2, 190, { size: 18, align: 'center' });
@@ -269,7 +281,8 @@ class GuestHub {
     this.run = {
       save, get atCamp() { return !!(self.snap && self.snap.ph === 'camp'); },
       ensureTeam() { Run.prototype.ensureTeam.call(this); },
-      spawnRecruits() {}, applyStats() { self.net.send({ t: 'opts', opts: fighterOpts(save, save.main, true) }); }, goto() {},
+      spawnRecruits() { this.applyStats(); },
+      applyStats() { self.net.send({ t: 'opts', opts: fighterOpts(save, save.main, true), team: guestTeam(save) }); }, goto() {},
     };
     Sound.music('title');
   }
@@ -380,6 +393,7 @@ class GuestHub {
       const heroes = g.fighters.filter(f => f.team === 1 && (f.id === s.mid || f.id === s.gid));
       heroes.sort((a, b) => (a.id === s.gid ? -1 : 1) - (b.id === s.gid ? -1 : 1));
       drawHUD(ctx, heroes, this.t);
+      drawMiniHUD(ctx, g.fighters.filter(f => f.team === 1 && f.hudTag === 'Recrue'));
       if (s.ph === 'camp') this.drawCamp(ctx);
       else if (s.info) drawRunPanel(ctx, s.info, g.fighters);
     }

@@ -22,7 +22,9 @@ class Run {
   }
   get atCamp() { return this.phase === 'camp'; }
   coopOn() { return !!(this.coop && this.coop.connected); }
-  heroes() { return [this.main, this.guest, ...this.recruits].filter(Boolean); }
+  // Coopération à partir du palier 4 (et dans l'arène) : recrues des deux joueurs et ennemis plus nombreux
+  coopBig() { return this.coopOn() && (this.loc.type === 'arena' || this.loc.i >= COOP_CROWD_FROM); }
+  heroes() { return [this.main, this.guest, ...this.recruits, ...(this.grecruits || [])].filter(Boolean); }
   // Choix d'un palier : au camp, change la destination ; en combat, le gladiateur se replie au camp
   goto(loc) {
     this.setDest(loc);
@@ -42,7 +44,7 @@ class Run {
     this.main = this.spawnHero(this.save.main, true, 1, 470, 120);
     this.main.facing = 1;
     this.guest = this.spawnGuest(560, 90);
-    this.recruits = [null, null];
+    this.recruits = [null, null]; this.grecruits = [null, null];
     this.spawnRecruits(1);
     this.queue = []; this.wave = -1;
     Sound.music('title');
@@ -62,7 +64,7 @@ class Run {
     this.anchor = ZONE_START;
     this.main = this.spawnHero(this.save.main, true, 1, ZONE_START, 100);
     this.guest = this.spawnGuest(ZONE_START - 50, 150);
-    this.recruits = [null, null];
+    this.recruits = [null, null]; this.grecruits = [null, null];
     this.spawnRecruits(1);
     g.cam.x = clamp(this.main.x + CAM_LEAD - W / 2, 0, ARENA_W - W);
     this.queue = []; this.wave = -1;
@@ -99,6 +101,8 @@ class Run {
   }
   dropGuest() {
     if (this.guest) { this.guest.gone = true; this.g.fx('smoke', this.guest.x, 35, this.guest.z, 10); this.guest = null; }
+    for (const f of this.grecruits || []) if (f && f.alive) { f.gone = true; this.g.fx('smoke', f.x, 35, f.z, 10); }
+    this.grecruits = [null, null];
     this.g.banner('Partenaire déconnecté', 'Votre champion poursuit seul.', 120, '#ff9a8a');
     if (this.atCamp) this.spawnRecruits(1);
   }
@@ -111,8 +115,8 @@ class Run {
   }
   spawnRecruits(hpFrac) {
     this.ensureTeam();
-    // en coopération, chaque joueur n'amène que son champion
-    const n = this.coopOn() ? 0 : teamSlots(this.save);
+    // en coopération, les recrues ne viennent qu'à partir du palier 4
+    const n = this.coopOn() && !this.coopBig() ? 0 : teamSlots(this.save);
     for (let k = 0; k < 2; k++) {
       const cur = this.recruits[k];
       if (k >= n) { if (cur && cur.alive) { cur.gone = true; this.g.fx('smoke', cur.x, 35, cur.z, 10); } this.recruits[k] = null; continue; }
@@ -122,6 +126,26 @@ class Run {
       const base = this.main.alive ? this.main : null;
       if (this.atCamp) this.recruits[k] = this.spawnHero(id, false, 1, 360 - k * 110, 70 + k * 80);
       else this.recruits[k] = this.spawnHero(id, false, Math.max(0.2, hpFrac), base ? base.x - 60 - k * 40 : null, base ? clamp(base.z + (k ? 50 : -50), 10, DEPTH - 10) : null);
+    }
+    this.spawnGuestRecruits(hpFrac);
+  }
+  // Recrues du partenaire (envoyées par l'invité avec leurs propres améliorations)
+  spawnGuestRecruits(hpFrac) {
+    if (!this.grecruits) this.grecruits = [null, null];
+    const want = this.coopBig() ? (this.coop.guestOpts.team || []) : [];
+    for (let k = 0; k < 2; k++) {
+      const cur = this.grecruits[k], T = want[k];
+      if (cur && cur.alive && T && cur.def.id === T.charId) continue;
+      if (cur && cur.alive) { cur.gone = true; this.g.fx('smoke', cur.x, 35, cur.z, 10); }
+      this.grecruits[k] = null;
+      if (!T || !CHARS[T.charId]) continue;
+      const base = this.guest && this.guest.alive ? this.guest : this.main;
+      const x = this.atCamp ? 610 + k * 100 : base.x - 60 - k * 40;
+      const z = this.atCamp ? 60 + k * 100 : clamp(base.z + (k ? 50 : -50), 10, DEPTH - 10);
+      const f = this.spawnWith(CHARS[T.charId], T.opts, x, z, true);
+      f.hp = f.hpCap = Math.max(1, f.hpMax * (this.atCamp ? 1 : Math.max(0.2, hpFrac)));
+      f.hudTag = 'Recrue'; f.hudCol = '#7fd8ff';
+      this.grecruits[k] = f;
     }
   }
   applyOpts(f, o) {
@@ -138,12 +162,19 @@ class Run {
     this.applyOpts(this.main, fighterOpts(this.save, this.main.def.id, true));
     this.recruits.forEach(f => f && this.applyOpts(f, fighterOpts(this.save, f.def.id, false)));
   }
-  applyGuest() { if (this.guest && this.coopOn()) this.applyOpts(this.guest, this.coop.guestOpts.opts); }
+  applyGuest() {
+    if (!this.coopOn()) return;
+    if (this.guest) this.applyOpts(this.guest, this.coop.guestOpts.opts);
+    if (this.atCamp) this.spawnGuestRecruits(1);
+    const team = this.coop.guestOpts.team || [];
+    (this.grecruits || []).forEach((f, k) => { if (f && team[k] && f.def.id === team[k].charId) this.applyOpts(f, team[k].opts); });
+  }
   startWave(w) {
     const g = this.g, wd = this.def.waves[w];
     this.wave = w;
     this.queue = [];
-    for (const [id, n] of wd) for (let k = 0; k < n; k++) this.queue.push(id);
+    const crowd = this.coopBig() ? COOP_CROWD : 1;
+    for (const [id, n] of wd) { const c = CHARS[id].boss ? n : Math.ceil(n * crowd); for (let k = 0; k < c; k++) this.queue.push(id); }
     this.spawnT = 30;
     const boss = this.queue.some(id => CHARS[id].boss);
     if (w > 0 || boss) g.banner(boss ? 'BOSS !' : 'Vague ' + (w + 1) + ' / ' + this.def.waves.length, boss ? this.queue.filter(id => CHARS[id].boss).map(id => CHARS[id].name).join(' et ') : '', 90, boss ? '#ff6060' : '#ffe9a0');
@@ -221,7 +252,8 @@ class Run {
     switch (this.phase) {
       case 'fight': {
         const count = () => g.fighters.filter(f => f.team === 2 && f.alive).length;
-        if (this.queue.length && count() < 4 && --this.spawnT <= 0) { this.spawnEnemy(this.queue.shift()); this.spawnT = randi(35, 80); }
+        const cap = this.coopBig() ? 8 : 4;
+        if (this.queue.length && count() < cap && --this.spawnT <= 0) { this.spawnEnemy(this.queue.shift()); this.spawnT = randi(this.coopBig() ? 20 : 35, this.coopBig() ? 50 : 80); }
         const active = count();
         const champions = [m, this.guest].filter(Boolean);
         if (champions.every(f => !f.alive)) {
@@ -270,7 +302,10 @@ class Run {
   draw(ctx) {
     const g = this.g;
     g.draw(ctx);
-    drawHUD(ctx, this.heroes(), g.t);
+    if (this.coopOn()) {
+      drawHUD(ctx, [this.main, this.guest].filter(Boolean), g.t);
+      drawMiniHUD(ctx, [...this.recruits, ...(this.grecruits || [])].filter(Boolean));
+    } else drawHUD(ctx, this.heroes(), g.t);
     if (this.atCamp) return;
     drawRunPanel(ctx, this.infoPanel(), g.fighters);
   }
@@ -284,6 +319,15 @@ function xpBurst(g, at, n) {
   fx('star', at.x, at.y + (at.height || 70) * 0.6, at.z + 1, big ? 8 : 5);
   fx('ring', at.x, 4, at.z, 1, { color: '#ffd84a', size: 34 });
   Sound.play('xp');
+}
+// Recrues en coopération : petites jauges sous les portraits des champions
+function drawMiniHUD(ctx, list) {
+  list.slice(0, 4).forEach((f, i) => {
+    const x = 6 + i * 118, y = 68;
+    panel(ctx, x, y, 114, 26, { r: 5, fill: 'rgba(8,6,18,0.72)', stroke: f.hudCol === '#7fd8ff' ? 'rgba(127,216,255,0.7)' : 'rgba(255,210,122,0.6)', lw: 1.5 });
+    txt(ctx, f.name, x + 6, y + 11, { size: 10, color: f.dead ? '#ff7070' : '#fff' });
+    drawBar(ctx, x + 6, y + 15, 102, 6, f.dead ? 0 : f.hp / f.hpMax, '#e8343c', f.hpCap / f.hpMax);
+  });
 }
 // Panneau du lieu (en haut à droite) et barre du boss
 function drawRunPanel(ctx, info, fighters) {
