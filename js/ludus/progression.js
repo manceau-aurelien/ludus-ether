@@ -80,6 +80,13 @@ function spKeys(def) {
 function spNodes(def) {
   return spKeys(def).map((key, i) => {
     const m = def.specials[key];
+    const B = i === BUFF_SLOT && BUFF_DEFS[def.id];
+    if (B) return {
+      id: 'sp' + i, key, name: B.name, cmd: cmdLabel(key), pos: [i, 3], max: 5, base: SP_BASE[i], growth: 2.5, special: true, buff: true,
+      req: { ['sp' + (i - 1)]: 1 },
+      desc: 'Renforcement (' + cmdLabel(key) + ') : ' + B.desc,
+      fx: l => l === 0 ? 'Non appris' : B.fx(l) + ', ' + (6 + l) + ' s, coût ' + Math.round(m.mp * Math.max(0.6, 1 - 0.07 * (l - 1))) + ' PM',
+    };
     return {
       id: 'sp' + i, key, name: m.name, cmd: cmdLabel(key), pos: [i, 3], max: 5, base: SP_BASE[i], growth: 2.5, special: true,
       req: i ? { ['sp' + (i - 1)]: 1 } : null,
@@ -286,6 +293,7 @@ function fighterOpts(save, charId, isMain) {
   const perks = { sp: {} };
   for (const n of SKILL_NODES) perks[n.id] = g(n.id) > 0;
   spKeys(def).forEach((key, i) => { if (g('sp' + i)) perks.sp[key] = g('sp' + i); });
+  if (BUFF_DEFS[charId]) perks.buffs = { [spKeys(def)[BUFF_SLOT]]: charId };
   return {
     hp: def.hp * (HP_BASE + HP_STEP * g('vita')),
     atkMul: 0.7 + 0.06 * g('force'),

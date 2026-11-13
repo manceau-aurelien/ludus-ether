@@ -75,6 +75,8 @@ class AIController extends Controller {
     if (!t || !t.alive || this.tgtT-- <= 0 || t.team === f.team) {
       t = this.tgt = g.nearestEnemy(f); this.tgtT = randi(60, 160);
     }
+    // une cible camouflée est souvent perdue de vue
+    if (t && t.buff && t.buff.stealth && Math.random() < 0.6) { const alt = g.nearestEnemy(f); if (alt && alt !== t) t = this.tgt = alt; }
     if (--this.zOffT <= 0) { this.zOff = rand(-P.aim, P.aim); this.wantErr = rand(-P.posErr, P.posErr); this.zOffT = randi(40, 90); }
     if (!t) {
       // pas d'ennemi : avancer vers la zone de la prochaine vague, sinon suivre le meneur
@@ -129,8 +131,14 @@ class AIController extends Controller {
     // pouvoirs
     if (ai.sp && !tDown && S !== 'run') {
       for (const s of ai.sp) {
-        const m = d.specials[s.c];
+        const ov = f.perks && f.perks.buffs && f.perks.buffs[s.c];
+        const m = ov ? BUFF_MOVES[ov] : d.specials[s.c];
         if (!m || (f.perks && !f.spLevel(s.c))) continue;
+        if (ov) {   // renforcement : à lancer quand le combat est proche et qu'il n'est pas déjà actif
+          if (f.buff || adx > 320 || f.mp < f.spCost(s.c, m)) continue;
+          if (Math.random() < 0.35 * P.spMul) { this.special = s.c; this.cd += 12; return; }
+          continue;
+        }
         if (f.mp < f.spCost(s.c, m)) continue;
         const sloppy = Math.random() > P.mana;     // mauvaise lecture : lance sans vérifier la portée
         if (!sloppy) {

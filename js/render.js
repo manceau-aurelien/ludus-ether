@@ -353,6 +353,12 @@ function drawFighter(ctx, f, cx) {
   else if (f.state === 'frozen') tint = null;
   if (f.dead && f.deadT > 40 && !f.human && !f.keepCorpse) alpha = Math.max(0, 1 - (f.deadT - 40) / 50) * ((f.deadT >> 2) % 2 ? 1 : 0.5);
   if (f.inv > 0 && f.state !== 'move' && (f.t >> 2) % 2) alpha *= 0.55;
+  if (f.buff && f.buff.stealth) alpha *= 0.4;
+  if (f.buff && f.buff.col) {
+    ctx.save(); ctx.globalAlpha = 0.3 + 0.15 * Math.sin(f.t * 0.2); ctx.fillStyle = f.buff.col;
+    ctx.beginPath(); ctx.ellipse(sx, GY + f.z, 28 * sc, 9 * sc, 0, 0, TAU); ctx.fill();
+    ctx.globalAlpha *= 1.6; ctx.strokeStyle = f.buff.col; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+  }
   if (f.dead && f.human) alpha *= 0.75;
   ctx.save();
   ctx.globalAlpha = alpha;

@@ -110,7 +110,8 @@ class CoopHost {
         const p = f.getPose();
         return [f.id, f.def.id, r1(f.x), r1(f.y), r1(f.z), f.facing, f.state, poseArr(p), f.flash, f.t, f.dead ? 1 : 0, f.deadT, f.inv > 0 ? 1 : 0,
           f.spin ? 1 : 0, f.weaponType() || 0, Math.round(f.hp), f.hpMax, Math.round(f.hpCap), Math.round(f.mp), f.mpMax, f.mpFlash, f.team,
-          f.boss ? 1 : 0, f.ally ? 1 : 0, f.keepCorpse ? 1 : 0, f.hudTag || 0, f.hudCol || 0, f.name, f.rooted, f.clone ? 1 : 0, r1(f.vx)];
+          f.boss ? 1 : 0, f.ally ? 1 : 0, f.keepCorpse ? 1 : 0, f.hudTag || 0, f.hudCol || 0, f.name, f.rooted, f.clone ? 1 : 0, r1(f.vx),
+          f.buff ? f.buff.col : 0, f.buff && f.buff.stealth ? 1 : 0];
       }),
       p: g.projs.map(p => [p.kind, r1(p.x), r1(p.y), r1(p.z), r1(p.vx), r1(p.vy), r1(p.vz), p.facing, p.t, p.r, p.delay, p.life, p.maxLife, p.fx || 0, p.id, p.arm || 0, p.stationary ? 1 : 0]),
       i: g.items.map(it => [it.type, r1(it.x), r1(it.y), r1(it.z), r1(it.rot), it.holder ? 1 : 0, it.life, it.t, it.id]),
@@ -158,7 +159,8 @@ class Ghost {
   set(a) {
     [this.id, this.cid, this.x, this.y, this.z, this.facing, this.state, this.pz, this.flash, this.t, this.dead, this.deadT, this.inv,
       this.spin, this.w, this.hp, this.hpMax, this.hpCap, this.mp, this.mpMax, this.mpFlash, this.team, this.boss, this.ally,
-      this.keepCorpse, this.hudTag, this.hudCol, this.name, this.rooted, this.clone, this.vx] = a;
+      this.keepCorpse, this.hudTag, this.hudCol, this.name, this.rooted, this.clone, this.vx, this.bcol, this.bst] = a;
+    this.buff = this.bcol ? { col: this.bcol, stealth: !!this.bst } : null;
     this.def = CHARS[this.cid]; this.look = this.def.look;
     this.height = 72 * (this.look.scale || 1); this.width = 14 * (this.look.scale || 1);
     this.dead = !!this.dead; this.gone = false; this.human = false;

@@ -55,7 +55,7 @@ class Battle {
     let best = null, bd = maxD;
     for (const o of this.fighters) {
       if (o === f || o.team === f.team || !o.alive) continue;
-      const d = Math.abs(o.x - f.x) + Math.abs(o.z - f.z) * 1.5 + (o.state === 'lie' || o.state === 'getup' ? 120 : 0);
+      const d = Math.abs(o.x - f.x) + Math.abs(o.z - f.z) * 1.5 + (o.state === 'lie' || o.state === 'getup' ? 120 : 0) + (o.buff && o.buff.stealth ? 700 : 0);
       if (d < bd) { bd = d; best = o; }
     }
     return best;
@@ -142,6 +142,13 @@ class Battle {
   hit(src, tgt, h, dir) {
     if (!tgt.alive) return null;
     if (src && src.team === tgt.team && !this.ff) return null;
+    const tb = tgt.buff;
+    if (tb && tb.evade && Math.random() < tb.evade) {
+      this.fx('wind', tgt.x, tgt.y + 40, tgt.z + 1, 4);
+      this.fx('text', tgt.x, tgt.y + tgt.height + 10, tgt.z + 1, 1, { text: 'Esquive !', color: '#bffff0', size: 13 });
+      return 'miss';
+    }
+    if (src && src.buff && src.buff.onHit && !h.fx && !(h instanceof Proj)) h = Object.assign({}, h, { fx: src.buff.onHit });
     let dmg = h.dmg || 0;
     if (h.weapon && src && src.hold) {
       dmg = src.hold.def.dmg; src.hold.hp -= 15;
@@ -165,7 +172,15 @@ class Battle {
       }
       return 'block';
     }
-    const armored = tgt.armorOn || (tgt.boss && tgt.state === 'move' && (h.fall || 0) < 60 && tgt.y <= 0);
+    if (tb && tb.shield > 0) {
+      const a = Math.min(tb.shield, dmg); tb.shield -= a; dmg -= a;
+      if (dmg <= 0.01) {
+        this.fx('spark', sx, sy, sz, 6, { color: '#40e0ff' }); Sound.play('block');
+        if (src) src.hitstop = Math.max(src.hitstop, 3);
+        return 'shield';
+      }
+    }
+    const armored = tgt.armorOn || (tgt.boss && tgt.state === 'move' && (h.fall || 0) < 60 && tgt.y <= 0) || (tb && tb.armor && (h.fall || 0) < 75);
     tgt.hp -= dmg; tgt.hpCap = Math.max(tgt.hp, tgt.hpCap - dmg * 0.33);
     if (src) { src.stats.dmg += dmg; if (src.move && src.move.combo) src.comboHits++; }
     tgt.flash = 6;

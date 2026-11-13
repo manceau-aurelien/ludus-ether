@@ -3,6 +3,7 @@
 //  ENTITÉS : combattants, projectiles, objets, particules
 // =====================================================================
 let _uid = 0;
+const BUFF_MOVES = {};   // sorts de renforcement remplaçant certains pouvoirs (définis par le Ludus)
 
 // Fabrique de mouvement (attaque ou pouvoir)
 function M(o) {
@@ -118,6 +119,12 @@ class Fighter {
       if (this.mp < this.mpMax) this.mp = Math.min(this.mpMax, this.mp + (this.mpRegen != null ? this.mpRegen : 0.24 + 0.4 * (1 - this.hp / this.hpMax)));
       if (this.healPool > 0) { const h = Math.min(this.healPool, 1.8); this.healPool -= h; this.hp = Math.min(this.hpMax, this.hp + h); this.hpCap = Math.max(this.hpCap, this.hp); }
     }
+    if (this.buff) {
+      const b = this.buff;
+      if (b.tick) b.tick(this, g);
+      if (this.t % 7 === 0) g.fx('heal', this.x + rand(-14, 14), this.y + rand(10, this.height), this.z + 1, 1, { color: b.col });
+      if (--b.t <= 0 || this.dead) { if (b.undo) b.undo(this); this.buff = null; g.fx('ring', this.x, 4, this.z, 1, { color: '#ffffff', size: 26 }); }
+    }
     if (this.burn > 0) { this.burn--; if (this.t % 3 === 0) g.fx('fire', this.x + rand(-8, 8), this.y + rand(10, this.height), this.z + 1, 1); }
     if (this.lifeT > 0 && !this.dead) {
       this.lifeT--;
@@ -137,7 +144,8 @@ class Fighter {
   trySpecial(cmd, g) {
     let key = cmd, face = 0;
     if (cmd[1] === 'L' || cmd[1] === 'R') { face = cmd[1] === 'L' ? -1 : 1; key = 'D>' + cmd[2]; }
-    const m = this.def.specials && this.def.specials[key];
+    const ov = this.perks && this.perks.buffs && this.perks.buffs[key];
+    const m = ov ? BUFF_MOVES[ov] : this.def.specials && this.def.specials[key];
     if (!m) return false;
     if (this.perks && !this.spLevel(key)) return false;
     const inAir = this.y > 0.5;
@@ -146,7 +154,7 @@ class Fighter {
     if (this.mp < cost) { this.mpFlash = 24; Sound.play('nomp'); return true; }
     if (m.check && !m.check(this, g)) return true;
     if (this.hold && this.hold.def.heavy) this.drop(g);
-    this.mp -= cost; this.powMul = this.spPow(key);
+    this.mp -= cost; this.powMul = this.spPow(key); this.castLevel = this.spLevel(key);
     if (face) this.facing = face;
     this.startMove(m);
     return true;
@@ -542,6 +550,7 @@ class Proj {
     if (this.noHit) return;
     for (const f of g.fighters) {
       if (f.team === this.team || !f.hittable()) continue;
+      if (f.buff && f.buff.antiProj) continue;   // renforcement : insensible aux attaques à distance
       const last = this.hitMap.get(f.id);
       if (last !== undefined && (!this.rehit || this.t - last < this.rehit)) continue;
       if (Math.abs(f.x - this.x) > this.r + f.width * 0.6) continue;

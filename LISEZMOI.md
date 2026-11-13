@@ -31,6 +31,8 @@ Depuis le titre : *Coopération en ligne*. Chaque joueur doit avoir fondé son �
 ## L'arbre (T)
 - **Intelligence** : réflexes, placement, précision, garde, esquive, fluidité des combos, gestion de la mana, sens tactique (10 niveaux chacun). C'est la branche **la moins chère** : votre gladiateur apprend vite à bien se battre, ce sont ses statistiques qui le freinent.
 - **Compétences** : enchaînement, coup final, saisie, saut, course, attaque en course, grand saut, roulade, objets, puis les 4 pouvoirs du personnage (5 niveaux chacun).
+- **Renforcements** : le 3e pouvoir de chaque Gardien est un sort de renforcement temporaire (6 s + 1 s par niveau) :
+  Kael *Souffle du Zéphyr* (vitesse et esquive) · Brasia *Fureur Ardente* (dégâts) · Nivale *Armure de Givre* (insensible aux projectiles) · Volt *Surcharge* (coups électrisants, mana) · Borak *Peau de Granit* (résistance, inébranlable) · Nyx *Voile d'Ombre* (camouflage, dégâts) · Lyra *Sève Vivifiante* (régénération de l'équipe proche) · Tekk *Bouclier Énergétique* (absorbe les dégâts).
 - **Statistiques** : force (coups et pouvoirs), résistance, vitalité, réserve de mana, régénération de mana, agilité.
 - **Utilitaire** : accélération du temps (×2, ×3, ×4), prime d'expérience, soins entre les vagues, élixirs, et **l'équipe** (2 recrues).
 - **Recrues** : compétences à débloquer, IA moyenne fixe, statistiques limitées au niveau 10. L'XP est commune à toute l'école.
