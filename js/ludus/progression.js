@@ -208,7 +208,32 @@ function newSave(mainId, slot) {
 function validSave(s) {
   return !!(s && s.v === 1 && CHARS[s.main] && PLAYABLE.includes(s.main) && s.lv && s.lv.main && s.lv.r && s.stats && s.loc && typeof s.xp === 'number');
 }
-function readKey(k) { try { const s = JSON.parse(localStorage.getItem(k)); return validSave(s) ? s : null; } catch (e) { return null; } }
+// Remet une sauvegarde d'aplomb : bornes, identifiants, niveaux plafonnés aux maximums de l'arbre
+function normalizeSave(s) {
+  const num = (v, d = 0) => (typeof v === 'number' && isFinite(v) && v >= 0 ? v : d);
+  s.xp = num(s.xp); s.totalXp = Math.max(num(s.totalXp), s.xp);
+  s.maxStage = clamp(Math.floor(num(s.maxStage)), 0, PALIERS.length);
+  s.arenaMax = Math.floor(num(s.arenaMax));
+  if (s.maxStage >= PALIERS.length) s.arenaMax = Math.max(1, s.arenaMax); else s.arenaMax = 0;
+  const L = s.loc || {};
+  if (L.type === 'arena' && s.arenaMax > 0) s.loc = { type: 'arena', n: clamp(Math.floor(num(L.n, 1)), 1, s.arenaMax) };
+  else s.loc = { type: 'stage', i: clamp(Math.floor(num(L.i)), 0, Math.min(s.maxStage, PALIERS.length - 1)) };
+  const clampLv = (lv, nodes) => { const out = {}; for (const n of nodes) { const v = Math.floor(num(lv && lv[n.id])); if (v > 0) out[n.id] = Math.min(v, n.max); } return out; };
+  const md = CHARS[s.main];
+  s.lv.main = clampLv(s.lv.main, IA_NODES.concat(SKILL_NODES, spNodes(md), statNodes(md, false), UTIL_NODES));
+  const r = {};
+  for (const id in s.lv.r) if (PLAYABLE.includes(id) && id !== s.main && s.lv.r[id] && typeof s.lv.r[id] === 'object') r[id] = clampLv(s.lv.r[id], SKILL_NODES.concat(spNodes(CHARS[id]), statNodes(CHARS[id], true)));
+  s.lv.r = r;
+  s.team = [0, 1].map(k => { const id = Array.isArray(s.team) ? s.team[k] : null; return PLAYABLE.includes(id) && id !== s.main ? id : null; });
+  if (s.team[0] && s.team[0] === s.team[1]) s.team[1] = null;
+  const st = s.stats || {};
+  s.stats = { kills: num(st.kills), defeats: num(st.defeats), waves: num(st.waves), time: num(st.time) };
+  s.mode = s.mode === 'repeat' ? 'repeat' : 'progress';
+  s.speed = clamp(Math.floor(num(s.speed, 1)), 1, 4);
+  s.tuto = !!s.tuto;
+  return s;
+}
+function readKey(k) { try { const s = JSON.parse(localStorage.getItem(k)); return validSave(s) ? normalizeSave(s) : null; } catch (e) { return null; } }
 function loadSave(slot) {
   const s = readKey(slotKey(slot)) || readKey(slotBak(slot));
   if (s) s.slot = slot;
@@ -250,7 +275,11 @@ function importSave(slot, done) {
     const f = inp.files && inp.files[0]; if (!f) return;
     const rd = new FileReader();
     rd.onload = () => {
-      try { const s = JSON.parse(rd.result); if (!validSave(s)) throw new Error('invalide'); s.slot = slot; writeSave(s); done(true); }
+      try {
+        const s = JSON.parse(rd.result); if (!validSave(s)) throw new Error('invalide');
+        normalizeSave(s); s.slot = slot;
+        done(writeSave(s));   // l'import n'est annoncé réussi que si l'écriture a vraiment eu lieu
+      }
       catch (e) { done(false); }
     };
     rd.readAsText(f);

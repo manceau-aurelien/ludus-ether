@@ -21,7 +21,9 @@ class Run {
     this.def = locDef(this.loc);
   }
   get atCamp() { return this.phase === 'camp'; }
-  coopOn() { return !!(this.coop && this.coop.connected); }
+  // La coopération (XP et dégâts doublés, foule) ne s'applique que si le champion du partenaire est dans ce combat.
+  // Un partenaire qui se connecte en pleine vague entre en jeu au prochain retour au camp.
+  coopOn() { return !!(this.coop && this.coop.connected && this.guest); }
   // Coopération à partir du palier 4 (et dans l'arène) : recrues des deux joueurs et ennemis plus nombreux
   coopBig() { return this.coopOn() && (this.loc.type === 'arena' || this.loc.i >= COOP_CROWD_FROM); }
   heroes() { return [this.main, this.guest, ...this.recruits, ...(this.grecruits || [])].filter(Boolean); }
@@ -88,7 +90,7 @@ class Run {
   }
   // Champion du partenaire en ligne (piloté ici par son IA, avec ses propres améliorations)
   spawnGuest(x, z) {
-    if (!this.coopOn()) return null;
+    if (!(this.coop && this.coop.connected)) return null;
     const G = this.coop.guestOpts;
     const f = this.spawnWith(CHARS[G.charId], G.opts, x, z, true);
     f.keepCorpse = true; f.hudTag = 'Partenaire'; f.hudCol = '#7fd8ff'; f.name = G.charName;
@@ -97,7 +99,7 @@ class Run {
   // Arrivée ou départ du partenaire en cours de partie
   guestJoined() {
     if (this.atCamp && !this.guest) { this.guest = this.spawnGuest(560, 90); this.spawnRecruits(1); }
-    this.g.banner('Partenaire connecté', CHARS[this.coop.guestOpts.charId].name + ' rejoint le Ludus', 110, '#7fd8ff');
+    this.g.banner('Partenaire connecté', CHARS[this.coop.guestOpts.charId].name + (this.guest ? ' rejoint le Ludus' : ' entrera dans l\'arène au prochain retour au camp'), 130, '#7fd8ff');
   }
   dropGuest() {
     if (this.guest) { this.guest.gone = true; this.g.fx('smoke', this.guest.x, 35, this.guest.z, 10); this.guest = null; }
@@ -196,18 +198,19 @@ class Run {
     if (def.boss) f.boss = true;
   }
   // base : XP de référence ; fixed : montant fixe (prime de résilience), non multiplié
-  addXp(base, at, fixed) {
+  // at : position de l'effet visuel ; kill : un ennemi a été vaincu (statistiques)
+  addXp(base, at, fixed, kill) {
     const raw = fixed ? base : base * GAME_XP * (this.coopOn() ? COOP_XP : 1);
     const n = Math.max(1, Math.round(fixed ? raw : raw * xpMul(this.save)));
     this.save.xp += n; this.save.totalXp += n;
     this.hub.logXp(n, !!at);
     if (at) xpBurst(this.g, at, n);
-    if (this.coopOn()) this.coop.send({ t: 'xp', raw, fixed: !!fixed, kill: !!at, pos: at ? { x: at.x, y: at.y, z: at.z, h: at.height } : null });
+    if (this.coopOn()) this.coop.send({ t: 'xp', raw, fixed: !!fixed, kill: !!kill, pos: at ? { x: at.x, y: at.y, z: at.z, h: at.height } : null });
   }
   onKO(t) {
     if (t.team !== 2) return;
     this.save.stats.kills++;
-    this.addXp((XPV[t.def.id] || 3) * this.def.xp, t);
+    this.addXp((XPV[t.def.id] || 3) * this.def.xp, t, false, true);
   }
   heal(frac) {
     for (const f of this.heroes()) {

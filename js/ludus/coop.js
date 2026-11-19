@@ -9,6 +9,9 @@ const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const makeCode = () => { let s = ''; for (let i = 0; i < 5; i++) s += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]; return s; };
 const netAvailable = () => typeof Peer !== 'undefined';
 const r1 = v => Math.round(v * 10) / 10;
+// Temps d'aller-retour réseau, lissé
+const updateRtt = (old, v) => old == null ? v : old * 0.7 + v * 0.3;
+const rttLabel = rtt => rtt == null ? 'ping : mesure…' : 'ping : ' + Math.round(rtt) + ' ms';
 const poseArr = p => PK.map(k => Math.round(p[k]));
 const arrPose = a => { const o = {}; PK.forEach((k, i) => { o[k] = a[i]; }); return o; };
 // Recrues de l'invité (elles ne combattent qu'à partir du palier 4)
@@ -71,6 +74,8 @@ class CoopHost {
       if (d.team) this.guestOpts.team = d.team;
       if (this.run) this.run.applyGuest();
     } else if (d.t === 'ready') this.guestReady = !!d.v;
+    else if (d.t === 'ping') this.send({ t: 'pong', ts: d.ts });
+    else if (d.t === 'pong') this.rtt = updateRtt(this.rtt, performance.now() - d.ts);
   }
   onClose(c) {
     if (c !== this.conn) return;
@@ -82,8 +87,10 @@ class CoopHost {
   close() { try { this.send({ t: 'bye' }); } catch (e) { /* rien */ } setTimeout(() => { try { this.peer.destroy(); } catch (e) { /* rien */ } }, 200); }
 
   // Enregistre les effets visuels de la simulation pour les rejouer chez l'invité
+  // File d'effets bornée : en cas de réseau saturé, les effets les plus anciens sont abandonnés
+  rec(e) { const ev = this.events; ev.push(e); if (ev.length > 400) ev.splice(0, ev.length - 300); }
   hook(g) {
-    const ev = this.events, self = this;
+    const self = this, ev = { push: e => self.rec(e) };
     const ofx = g.fx.bind(g); g.rawFx = ofx;
     g.fx = (type, x, y, z, n = 1, o = {}) => { if (self.recording && self.connected) ev.push(['fx', type, r1(x), r1(y), r1(z), n, o]); return ofx(type, x, y, z, n, o); };
     const oaf = g.after.bind(g);
@@ -93,18 +100,19 @@ class CoopHost {
     const osh = g.shakeIt.bind(g); g.shakeIt = n => { if (self.recording && self.connected) ev.push(['sh', n]); return osh(n); };
     const ofl = g.flashIt.bind(g); g.flashIt = a => { if (self.recording && self.connected) ev.push(['fl', a]); return ofl(a); };
   }
-  recordSound(n) { if (this.recording && this.connected && this.events.length < 600) this.events.push(['s', n]); }
+  recordSound(n) { if (this.recording && this.connected) this.rec(['s', n]); }
 
   // Envoie l'état du combat (toutes les 2 images)
   frame(run, hub) {
     if (!this.connected) { this.events.length = 0; return; }
     if (++this.frameN % 2) return;
+    if (this.frameN % 120 === 0) this.send({ t: 'ping', ts: performance.now() });
     const dc = this.conn.dataChannel;
     if (dc && dc.bufferedAmount > 1500000) return;   // réseau saturé : on saute une image
     const g = run.g;
     const snap = {
       t: 'snap', ph: run.phase, cr: run.campReason, ct: Math.max(0, Math.round(run.campT || 0)), th: g.theme, ww: g.worldW,
-      b: [g.bounds.x0, g.bounds.x1], gid: run.guest ? run.guest.id : 0, mid: run.main.id,
+      b: [g.bounds.x0, g.bounds.x1], gid: run.guest ? run.guest.id : 0, mid: run.main.id, gin: !!run.guest,
       info: run.atCamp ? null : run.infoPanel(), dest: run.def.label, spd: hub.save.speed, mu: Sound.track ? Sound.track.name : null,
       f: g.fighters.filter(f => !f.gone).map(f => {
         const p = f.getPose();
@@ -142,6 +150,8 @@ class CoopGuest {
       c.on('data', d => {
         if (!d || !d.t) return;
         if (d.t === 'welcome') { this.status = 'ok'; this.host = d; clearTimeout(this.timer); }
+        else if (d.t === 'ping') c.send({ t: 'pong', ts: d.ts });
+        else if (d.t === 'pong') this.rtt = updateRtt(this.rtt, performance.now() - d.ts);
         else if (d.t === 'full') { this.status = 'error'; this.err = 'Cette partie a déjà un partenaire.'; }
         else this.inbox.push(d);
       });
@@ -157,6 +167,7 @@ class CoopGuest {
 class Ghost {
   constructor(a) { this.set(a); }
   set(a) {
+    const px = this.x, py = this.y, pz = this.z;
     [this.id, this.cid, this.x, this.y, this.z, this.facing, this.state, this.pz, this.flash, this.t, this.dead, this.deadT, this.inv,
       this.spin, this.w, this.hp, this.hpMax, this.hpCap, this.mp, this.mpMax, this.mpFlash, this.team, this.boss, this.ally,
       this.keepCorpse, this.hudTag, this.hudCol, this.name, this.rooted, this.clone, this.vx, this.bcol, this.bst] = a;
@@ -166,7 +177,10 @@ class Ghost {
     this.dead = !!this.dead; this.gone = false; this.human = false;
     if (!this.hudTag) this.hudTag = null;
     if (!this.hudCol) this.hudCol = null;
+    this.tx = this.x; this.ty = this.y; this.tz = this.z;
+    if (px !== undefined && Math.abs(px - this.tx) < 120 && Math.abs(pz - this.tz) < 60) { this.x = px; this.y = py; this.z = pz; }
   }
+  smooth() { this.x += (this.tx - this.x) * 0.5; this.y += (this.ty - this.y) * 0.5; this.z += (this.tz - this.z) * 0.5; }
   get alive() { return !this.dead; }
   getPose() { return arrPose(this.pz); }
   weaponType() { return this.w || null; }
@@ -342,6 +356,8 @@ class GuestHub {
     }
     if (this.g) {
       this.g.updateFx(); this.g.t++;
+      for (const gh of this.ghosts.values()) gh.smooth();
+      if (this.t % 120 === 0) this.net.send({ t: 'ping', ts: performance.now() });
       const me = this.snap && this.ghosts.get(this.snap.gid);
       const host = this.snap && this.ghosts.get(this.snap.mid);
       const lead = me && me.alive ? me : (host || me);
@@ -371,7 +387,7 @@ class GuestHub {
     if (pu > 0) { ctx.fillStyle = 'rgba(255,216,74,' + (pu / 40 * 0.35) + ')'; ctx.fillRect(0, BAR_Y, 250, H - BAR_Y); }
     txt(ctx, 'XP : ' + fmt(s.xp), 10, BAR_Y + 19, { size: 17 + pu / 10, color: pu > 0 ? '#ffe98a' : '#7dff9a' });
     txt(ctx, '+' + fmt(this.xpRate()) + ' / min', 150, BAR_Y + 18, { size: 12, color: '#bfe8c8', w: 'normal' });
-    txt(ctx, 'En ligne avec ' + (this.net.host ? this.net.host.hostName : 'l\'hôte') + '  •  vitesse ×' + (this.snap ? this.snap.spd : 1) + ' (choisie par l\'hôte)', 262, BAR_Y + 20, { size: 12, color: '#7fd8ff', w: 'normal' });
+    txt(ctx, 'En ligne avec ' + (this.net.host ? this.net.host.hostName : 'l\'hôte') + '  •  vitesse ×' + (this.snap ? this.snap.spd : 1) + '  •  ' + rttLabel(this.net.rtt), 262, BAR_Y + 20, { size: 12, color: '#7fd8ff', w: 'normal' });
     button(ctx, R.quit, 'Menu (Échap)', { size: 13 });
     button(ctx, R.tree, 'Arbre (T)', { size: 14 });
   }
@@ -398,6 +414,11 @@ class GuestHub {
       drawMiniHUD(ctx, g.fighters.filter(f => f.team === 1 && f.hudTag === 'Recrue'));
       if (s.ph === 'camp') this.drawCamp(ctx);
       else if (s.info) drawRunPanel(ctx, s.info, g.fighters);
+      if (s.ph !== 'camp' && !s.gin) {
+        panel(ctx, W / 2 - 250, 92, 500, 52, { fill: 'rgba(10,30,50,0.88)', stroke: '#7fd8ff', lw: 2 });
+        txt(ctx, 'Combat en cours chez l\'hôte : vous observez.', W / 2, 114, { size: 15, align: 'center', color: '#7fd8ff' });
+        txt(ctx, 'Votre champion entrera dans l\'arène au prochain retour au camp.', W / 2, 134, { size: 13, align: 'center', w: 'normal' });
+      }
     }
     this.drawBar(ctx);
     if (this.overlay) this.overlay.draw(ctx);

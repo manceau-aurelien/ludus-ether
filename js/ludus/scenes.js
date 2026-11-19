@@ -223,6 +223,8 @@ class LudusHub {
     if (!pause) for (let i = 0; i < s.speed; i++) this.run.update();
     if (this.coop) { this.coop.recording = false; this.coop.frame(this.run, this); }
     // départ automatique du camp (suspendu tant qu'une fenêtre est ouverte)
+    // partenaire prêt : le départ automatique est ramené à 3 secondes
+    if (this.run.atCamp && this.coop && this.coop.connected && this.coop.guestReady && s.autoDepart !== false) this.run.campT = Math.min(this.run.campT, 180);
     if (this.run.atCamp && !this.overlay && s.autoDepart !== false) { this.run.campT -= s.speed; if (this.run.campT <= 0) this.run.depart(); }
     if (this.t % 600 === 0) writeSave(s);
   }
@@ -236,7 +238,7 @@ class LudusHub {
       txt(ctx, '+' + fmt(this.lastGain), 128, BAR_Y - 6 - (40 - pu) * 0.6, { size: 16, color: '#ffd84a', align: 'right' });
     }
     txt(ctx, 'XP : ' + fmt(s.xp), 10, BAR_Y + 19, { size: 17 + pu / 10, color: pu > 0 ? '#ffe98a' : '#7dff9a' });
-    if (this.coop) txt(ctx, this.coop.connected ? 'Coop en ligne : ' + this.coop.guestOpts.charName + '  •  ennemis ×2, XP ×2' : 'Coop : partenaire déconnecté (code ' + this.coop.code + ')', 10, 80, { size: 12, color: '#7fd8ff' });
+    if (this.coop) txt(ctx, this.coop.connected ? 'Coop en ligne : ' + this.coop.guestOpts.charName + (this.run.guest ? '  •  ennemis ×2, XP ×2' : '  •  entrera au prochain camp') + '  •  ' + rttLabel(this.coop.rtt) : 'Coop : partenaire déconnecté (code ' + this.coop.code + ')', 10, 80, { size: 12, color: '#7fd8ff' });
     txt(ctx, '+' + fmt(this.xpRate()) + ' / min', 150, BAR_Y + 18, { size: 12, color: '#bfe8c8', w: 'normal' });
     txt(ctx, 'Vitesse', 258, BAR_Y + 21, { size: 11, color: '#ccc', w: 'normal' });
     const mx = maxSpeed(s);
@@ -257,7 +259,7 @@ class LudusHub {
     txt(ctx, 'Prochain combat : ' + run.def.label, W / 2, b.y + 78, { size: 15, align: 'center', color: '#fff' });
     if (this.coop) {
       const c = this.coop;
-      txt(ctx, c.connected ? 'Partenaire : ' + c.guestOpts.charName + (c.guestReady ? ' — prêt !' : ' — se prépare…') : 'Coopération : en attente d\'un partenaire (code ' + c.code + ')',
+      txt(ctx, c.connected ? 'Partenaire : ' + c.guestOpts.charName + (c.guestReady ? ' — prêt ! Départ imminent' : ' — se prépare…') + '  •  ' + rttLabel(c.rtt) : 'Coopération : en attente d\'un partenaire (code ' + c.code + ')',
         W / 2, b.y + 100, { size: 13, align: 'center', w: 'normal', color: c.guestReady ? '#7dff9a' : '#7fd8ff' });
     } else txt(ctx, "C'est ici que vous validez vos points dans l'Arbre (T).", W / 2, b.y + 100, { size: 13, align: 'center', w: 'normal', color: '#7dff9a' });
     button(ctx, C.go, 'Partir au combat (Entrée)', { size: 14, fill: 'rgba(120,60,20,0.95)', border: '#ffd27a' });
@@ -593,7 +595,7 @@ class SlotScene {
     else if (a === 'Choisir') { Store.set('lastSlot', slot); requestPersist(); App.set(new CoopLobby(s)); }
     else if (a === 'Nouvelle école') App.set(new ChooseScene(slot));
     else if (a === 'Exporter') { exportSave(s); this.msg = 'Fichier de sauvegarde téléchargé : gardez-le en lieu sûr.'; this.msgCol = '#7dff9a'; }
-    else if (a === 'Importer') importSave(slot, ok => { this.refresh(); this.msg = ok ? 'Sauvegarde importée dans l\'emplacement ' + slot + '.' : 'Ce fichier n\'est pas une sauvegarde valide du Ludus.'; this.msgCol = ok ? '#7dff9a' : '#ff9a8a'; });
+    else if (a === 'Importer') importSave(slot, ok => { this.refresh(); this.msg = ok ? 'Sauvegarde importée dans l\'emplacement ' + slot + '.' : 'Import impossible : fichier invalide, ou stockage du navigateur plein.'; this.msgCol = ok ? '#7dff9a' : '#ff9a8a'; });
     else if (a === 'Effacer') { this.confirmDel = slot; this.msg = 'Cliquez sur « Confirmer ? » pour effacer définitivement cette école.'; this.msgCol = '#ff9a8a'; }
     else if (a === 'Confirmer ?') { deleteSave(slot); if (Store.get('lastSlot', 0) === slot) Store.set('lastSlot', 0); this.confirmDel = 0; this.refresh(); this.msg = 'École effacée.'; this.msgCol = '#ffe9a0'; this.col = 0; }
   }

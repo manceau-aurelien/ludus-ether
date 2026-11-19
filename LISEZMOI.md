@@ -15,7 +15,7 @@ Le jeu d'origine est disponible en bonus depuis le titre : *Bonus : Éclats d'É
 ## Principe
 - Vous choisissez **un** gladiateur parmi les 8 Gardiens. Au départ, il a très peu de vie, réagit lentement, se place mal, ne bloque jamais et n'a ni mana ni pouvoir : il ne remporte son premier duel qu'environ 3 fois sur 10.
 - Il combat automatiquement les 5 paliers de la campagne (5 vagues chacun, un boss à la fin), puis l'**Arène des Champions**, sans fin, où plusieurs boss finissent par attaquer ensemble.
-- Chaque ennemi vaincu rapporte de l'**expérience (XP)** : 30 XP pour le premier pillard, bien plus pour les boss et les paliers avancés. Une défaite renvoie à la vague 1 du palier mais rapporte une **prime de résilience** fixe (30 XP) ; l'XP déjà gagnée est conservée.
+- Chaque ennemi vaincu rapporte de l'**expérience (XP)** : 60 XP pour le premier pillard (120 en coopération), bien plus pour les boss et les paliers avancés. Une défaite renvoie à la vague 1 du palier mais rapporte une **prime de résilience** fixe (30 XP) ; l'XP déjà gagnée est conservée.
 - Après chaque défaite ou palier remporté, le gladiateur rentre au **camp d'entraînement** : repos complet, et c'est **le seul endroit où l'on valide ses points**. L'arbre reste consultable pendant les combats. Le départ du camp se fait par le bouton *Partir au combat* (Entrée) ou automatiquement après 15 s (désactivable avec O ; le compte à rebours est suspendu tant que l'arbre est ouvert). Choisir un autre palier en plein combat fait se replier le gladiateur au camp.
 - **Paliers (P)** : revenir sur un palier déjà franchi. **Mode (R)** : *Avancer* (palier suivant après une victoire) ou *Répéter* (rester pour accumuler de l'XP).
 
@@ -25,6 +25,8 @@ Depuis le titre : *Coopération en ligne*. Chaque joueur doit avoir fondé son �
 - **Rejoindre** : saisissez le code de l'hôte.
 - Paliers 1 à 3 : chaque joueur amène **uniquement son champion**. **À partir du palier 4** (et dans l'Arène des Champions) : les ennemis ordinaires sont **deux fois plus nombreux**, et chaque joueur amène aussi **ses recrues** (avec leurs propres améliorations). On joue les **paliers de l'hôte**, qui choisit la vitesse et lance les départs ; l'invité peut signaler qu'il est prêt.
 - **Dégâts des ennemis ×2, XP gagnée ×2.** Chacun reçoit l'XP dans **sa propre école** et l'utilise dans son propre arbre, au camp (les paliers ne se débloquent que chez l'hôte).
+- Un partenaire qui se connecte pendant une vague observe le combat ; son champion entre dans l'arène (et la coopération s'applique) au prochain retour au camp.
+- Au camp, si l'invité clique sur « Je suis prêt », le départ automatique de l'hôte est ramené à 3 secondes. Le ping s'affiche des deux côtés.
 - La défaite survient quand les deux champions sont à terre. Si l'invité se déconnecte, l'hôte continue seul (et le même code reste valable pour revenir).
 - Connexion internet nécessaire : la mise en relation passe par le service gratuit PeerJS, puis la partie se joue en direct entre les deux navigateurs. Deux onglets d'un même navigateur partagent la même sauvegarde : pour jouer à deux, utilisez deux ordinateurs (ou deux navigateurs différents).
 
