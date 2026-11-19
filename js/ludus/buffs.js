@@ -41,16 +41,16 @@ const BUFF_DEFS = {
   },
   nyx: {
     name: 'Voile d\'Ombre', col: '#9b4dff', sfx: 'dark',
-    desc: 'elle se fond dans l\'ombre : les ennemis la perdent de vue, et ses coups surprennent.',
-    fx: l => 'Camouflage, dégâts ×' + (1.2 + 0.04 * l).toFixed(2),
-    apply(f, l) { const v = 1.2 + 0.04 * l; f.atkMul *= v; return { stealth: true, undo: x => { x.atkMul /= v; } }; },
+    desc: 'elle se fond dans l\'ombre : les ennemis la perdent de vue, une partie des coups la traverse, et les siens surprennent.',
+    fx: l => 'Camouflage, esquive ' + Math.round((0.2 + 0.04 * l) * 100) + ' %, dégâts ×' + (1.3 + 0.05 * l).toFixed(2),
+    apply(f, l) { const v = 1.3 + 0.05 * l; f.atkMul *= v; return { stealth: true, evade: 0.2 + 0.04 * l, undo: x => { x.atkMul /= v; } }; },
   },
   lyra: {
     name: 'Sève Vivifiante', col: '#7dff9a', sfx: 'heal',
     desc: 'la sève régénère sa vie et celle des alliés proches pendant toute la durée.',
-    fx: l => 'Régénère ' + (2 + 0.5 * l).toFixed(1).replace('.', ',') + ' % de vie par seconde (équipe proche)',
+    fx: l => 'Régénère ' + (1.5 + 0.4 * l).toFixed(1).replace('.', ',') + ' % de vie par seconde (équipe proche)',
     apply(f, l) {
-      const k = (0.02 + 0.005 * l) / 2;
+      const k = (0.015 + 0.004 * l) / 2;
       return { tick: (x, g) => {
         if (x.t % 30) return;
         for (const o of g.fighters) if (o.team === x.team && o.alive && Math.abs(o.x - x.x) < 230 && Math.abs(o.z - x.z) < 90) {
@@ -62,8 +62,8 @@ const BUFF_DEFS = {
   tekk: {
     name: 'Bouclier Énergétique', col: '#40e0ff', sfx: 'laser',
     desc: 'un bouclier absorbe les dégâts jusqu\'à ce qu\'il cède ou que l\'effet s\'arrête.',
-    fx: l => 'Absorbe ' + Math.round((0.25 + 0.05 * l) * 100) + ' % de la vie max',
-    apply(f, l) { return { shield: f.hpMax * (0.25 + 0.05 * l), tick: x => { if (x.buff.shield <= 0) x.buff.t = 0; } }; },
+    fx: l => 'Absorbe ' + Math.round((0.2 + 0.04 * l) * 100) + ' % de la vie max',
+    apply(f, l) { return { shield: f.hpMax * (0.2 + 0.04 * l), tick: x => { if (x.buff.shield <= 0) x.buff.t = 0; } }; },
   },
 };
 

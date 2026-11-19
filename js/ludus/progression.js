@@ -105,7 +105,7 @@ function statNodes(def, recruit) {
     { id: 'resist', name: 'Résistance', pos: P(1, 0), row: 1, max: cap(25), base: 8, growth: 1.33,
       desc: 'Réduit tous les dégâts reçus.', fx: l => 'Dégâts subis −' + Math.round((1 - Math.pow(0.97, l)) * 100) + ' %' },
     { id: 'vita', name: 'Vitalité', pos: P(2, 0), row: 2, max: cap(30), base: 6, growth: 1.3,
-      desc: 'Augmente la vie maximale.', fx: l => 'Vie : ' + Math.round(def.hp * (HP_BASE + HP_STEP * l)) },
+      desc: 'Augmente la vie maximale.', fx: l => 'Vie : ' + Math.round(def.hp * (HP_BASE + HP_STEP * l) * tune(def.id, 'hp')) },
     { id: 'manaMax', name: 'Réserve de mana', pos: P(0, 1), row: 3, max: cap(20), base: 4, growth: 1.33,
       desc: 'Taille de la barre de mana. Au départ, votre gladiateur n\'en a pas du tout.', fx: l => 'Mana max : ' + 25 * l },
     { id: 'manaRegen', name: 'Régénération de mana', pos: P(1, 1), row: 4, max: cap(15), base: 5, growth: 1.45, req: { manaMax: 1 },
@@ -131,7 +131,13 @@ const RESILIENCE_XP = 30;
 const GAME_XP = 2;           // multiplicateur global de l'XP gagnée (hors prime de résilience)
 const COOP_XP = 2, COOP_ENEMY_DMG = 2;
 const COOP_CROWD_FROM = 3, COOP_CROWD = 2;   // coop dès le palier 4 : recrues admises, ennemis ordinaires ×2   // coopération en ligne : XP et dégâts ennemis doublés
-const HP_BASE = 0.3, HP_STEP = 0.06;   // vie de départ très faible, ×2,1 au niveau 30
+const HP_BASE = 0.3, HP_STEP = 0.06;
+// Équilibrage propre au Ludus (le jeu classique garde ses valeurs) : vie, dégâts, dégâts subis
+const LUDUS_TUNE = {
+  kael: { hp: 1.4, atk: 1.2 }, brasia: { hp: 1.3, atk: 1.1 }, nivale: { hp: 1.35, atk: 1.1 }, volt: { hp: 1.25, atk: 1.1 },
+  borak: {}, nyx: { hp: 1.25, atk: 1.1 }, lyra: { hp: 0.85, atk: 0.95 }, tekk: { hp: 0.95 },
+};
+const tune = (id, k) => (LUDUS_TUNE[id] && LUDUS_TUNE[id][k]) || 1;   // vie de départ très faible, ×2,1 au niveau 30
 
 // ---------------------------------------------------------------------
 //  Campagne
@@ -171,7 +177,7 @@ function locDef(loc) {
     waves.push(list);
   }
   const nb = Math.min(5, 1 + Math.floor(n / 2));
-  const pool = BOSSES.slice(), bosses = [];
+  const pool = BOSSES.slice(0, Math.min(BOSSES.length, nb + 1 + Math.floor(n / 3))), bosses = [];
   while (bosses.length < nb) bosses.push(pool.splice(Math.floor(r() * pool.length), 1)[0]);
   waves.push(bosses.map(b => [b, 1]));
   return {
@@ -295,9 +301,9 @@ function fighterOpts(save, charId, isMain) {
   spKeys(def).forEach((key, i) => { if (g('sp' + i)) perks.sp[key] = g('sp' + i); });
   if (BUFF_DEFS[charId]) perks.buffs = { [spKeys(def)[BUFF_SLOT]]: charId };
   return {
-    hp: def.hp * (HP_BASE + HP_STEP * g('vita')),
-    atkMul: 0.7 + 0.06 * g('force'),
-    defMul: Math.pow(0.97, g('resist')),
+    hp: def.hp * (HP_BASE + HP_STEP * g('vita')) * tune(charId, 'hp'),
+    atkMul: (0.7 + 0.06 * g('force')) * tune(charId, 'atk'),
+    defMul: Math.pow(0.97, g('resist')) * tune(charId, 'def'),
     mpMax: 25 * g('manaMax'), mpRegen: 0.035 * g('manaRegen'),
     spd: isMain ? 0.85 + 0.03 * g('agilite') : 0.95,
     perks, aiP: aiParams(isMain ? L : RECRUIT_AI),

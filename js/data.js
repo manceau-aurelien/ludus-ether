@@ -118,9 +118,12 @@ SP.shadowClone = M({ name: 'Double Ténébreux', mp: 200, dur: 30, anim: AN.cast
   check: (f, g) => !f.clone && !g.fighters.some(o => o.cloneOf === f && o.alive),
   on: { 10: (f, g) => {
     sfx('dark');
-    const c = g.spawnFighter(f.def, { x: f.x - f.facing * 34, z: f.z, team: f.team, facing: f.facing, ai: 0.7, hpMul: 0.35, life: 720, clone: true, mp: 150, ally: false,
-      perks: f.perks, atkMul: f.atkMul / (f.def.atk || 1), mpMax: f.mpMax, mpRegen: f.mpRegen });
-    if (f.hpMax) { c.hpMax = c.hp = c.hpCap = Math.round(f.hpMax * 0.35); }
+    const lud = !!f.perks;
+    const perks = lud ? Object.assign({}, f.perks, { buffs: null, sp: Object.assign({}, f.perks.sp, { DvJ: 0 }) }) : f.perks;
+    const ctrl = lud && f.ctrl && f.ctrl.P ? new AIController(0.7, f.ctrl.P) : undefined;
+    const c = g.spawnFighter(f.def, { x: f.x - f.facing * 34, z: f.z, team: f.team, facing: f.facing, ai: 0.7, ctrl, hpMul: 0.35, life: lud ? 900 : 720, clone: true, mp: 150, ally: false,
+      perks, atkMul: f.atkMul / (f.def.atk || 1), mpMax: f.mpMax, mpRegen: f.mpRegen });
+    if (f.hpMax) { c.hpMax = c.hp = c.hpCap = Math.round(f.hpMax * (lud ? 0.5 : 0.35)); }
     c.cloneOf = f; g.fx('smoke', c.x, 35, c.z, 12, { color: '#2a1640' });
   } } });
 

@@ -140,6 +140,7 @@ class AIController extends Controller {
           continue;
         }
         if (f.mp < f.spCost(s.c, m)) continue;
+        if (m.check && !m.check(f, g)) continue;
         const sloppy = Math.random() > P.mana;     // mauvaise lecture : lance sans vérifier la portée
         if (!sloppy) {
           if (adx < s.r[0] || adx > s.r[1]) continue;
